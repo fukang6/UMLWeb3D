@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Three.js第一个例子</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+    <script src="../references/three.js"></script>
+    <script src="../references/stats.min.js"></script>
+    <script src="../references/dat.gui.min.js"></script>
+    <script src="../references/OrbitControls.js"></script>
+    <script src="../references/OBJLoader.js"></script>
+    <script src="../references/MTLLoader.js"></script>
+    <script src="../references/DragControls.js"></script>
+    <script src="../references/TransformControls.js"></script>
+    <script src="../references/FBXLoader.js"></script>
+    <script src="../references/inflate.min.js"></script>
+    <script src="../references/TDSLoader.js"></script>
+    <script src="../references/STLLoader.js"></script>
+</head>
+<body>
+    <audio id="music" src="../music/Refrain.mp3" loop></audio>
+
+    <script>
+        //记得引用依赖文件.....................
+        //////////////////////////////////////////////////////////////////////////////////global variables
+        var THREE,scene,mouse,camera,renderer;
+        var stats;
+        var controls_transform, controls_drag;
+        var sceneObjs_mesh = [], sceneObjs_import = [];
+        var objects = [];
+        var mesh, current;
+        var gui;
+        var API = {
+            offsetX: 0,
+            offsetY: 0,
+            repeatX: 1,
+            repeatY: 1,
+            rotation: 0, // positive is counter-clockwise
+            centerX: 0.5,
+            centerY: 0.5,
+            textures: 'logo-webgl',
+            RepeatWrapping:true,
+            materials: 'Basic',
+            scale: 1,
+        };
+        var clock = new THREE.Clock();
+        var mixer;
+        var mouse = new THREE.Vector2(), INTERSECTED;
+
+
+        ////////////////////////////////////////////////////////////////////////////////excute
+        main();
+        animate();
+
+
+        ////////////////////////////////////////////////////////////////////////////////function
+        function main() {
+            init();
+            models();
+            initGui();
+            controls();
+            listeners();
+        }
+
+
+        ///////////////////////////////////////////////////////
+        function init() {
+            //创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0xf0f0f0 );
+            scene.add( new THREE.GridHelper( 1000, 20 ) );
+
+            //添加灯光
+            var light=new THREE.PointLight(0xffffff);
+            light.position.set(300,400,200);
+            scene.add(light);
+            //加入环境光
+            scene.add(new THREE.AmbientLight(0x333333));
+
+            //加入相机对象
+            camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,1,5000);
+            camera.position.set(0,100,500);
+            camera.lookAt(scene.position);
+
+            //stats网页模型状态
+            stats = new Stats();
+            document.body.appendChild(stats.domElement);          //document.body
+
+            //创建渲染器
+            renderer=new THREE.WebGLRenderer();
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize(window.innerWidth,window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+        }
+
+        function models(){
+            //create mesh     1
+            var geometry=new THREE.BoxGeometry(50, 50, 50);
+            new THREE.TextureLoader().load( '../pictures/logo-webgl.png', function ( texture ) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                var material = new THREE.MeshBasicMaterial( { map: texture } );
+                mesh = new THREE.Mesh( geometry, material );
+                mesh.position.x = 100;
+                console.log(1);
+                scene.add( mesh );
+                objects.push(mesh);
+                //updateUvTransform();
+                //initGui();
+                render();
+            } );
+
+            //              2
+            new THREE.TextureLoader().load( '../pictures/crate.gif', function ( texture ) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                var material = new THREE.MeshBasicMaterial( { map: texture } );
+                var mesh = new THREE.Mesh( geometry, material);
+                mesh.position.x = -100;
+                console.log(2);
+                scene.add( mesh );
+                objects.push(mesh);
+            } );
+
+            //load obj（asynchronous）  3
+            var loader_obj=new THREE.OBJLoader();
+            loader_obj.load('../models/dog/dog.obj',function(dogObject){
+                dogObject.scale.set(0.1,0.1,0.1);
+                dogObject.position.y=50;
+                dogObject.position.x=30;
+                console.log(3);
+                scene.add(dogObject);
+                console.log("obj :" + dogObject.children.length);
+                objects.push(dogObject);
+            });
+
+            //load obj with mtl   4
+            var mtlLoader=new THREE.MTLLoader();
+            mtlLoader.load('../models/dog/dog.mtl',function(materials){
+                materials.preload();
+                var loader=new THREE.OBJLoader();
+                loader.setMaterials(materials);
+                loader.load('../models/dog/dog.obj',function(dogObject){
+                    dogObject.scale.set(0.1,0.1,0.1);
+                    dogObject.position.y=50;
+                    dogObject.position.x=-30;
+                    console.log(4);
+                    scene.add(dogObject);
+                    console.log("obj :" + dogObject.children.length);
+                    objects.push(dogObject);
+                });
+            });
+
+            //load fbx   5
+             var loader_fbx = new THREE.FBXLoader();
+             loader_fbx.load( '../models/fbx/Samba Dancing.fbx', function ( object ) {
+                 mixer = new THREE.AnimationMixer( object );
+                 var action = mixer.clipAction( object.animations[ 0 ] );
+                 action.play();
+                 console.log(5);
+                 scene.add( object );
+                 console.log("fbx :" + object.children.length);
+                 objects.push(object);
+                 render();
+             } );
+
+            //load 3ds   6
+            var loader_3ds_texture = new THREE.TextureLoader();
+            var normal = loader_3ds_texture.load( '../models/3ds/normal.jpg' );
+            var loader_3ds = new THREE.TDSLoader();
+            loader_3ds.setResourcePath( '../models/3ds/' );
+            loader_3ds.load( '../models/3ds/portalgun.3ds', function ( object ) {
+                object.traverse( function ( child ) {
+                    if ( child.isMesh ) {
+                        child.material.normalMap = normal;
+                    }
+                } );
+                object.scale.set(50, 50, 50);
+                console.log(6);
+                scene.add( object );
+                console.log("3ds :" + object.children.length);
+                objects.push(object);
+                render();
+            } );
+
+            //load stl   7
+            var loader_stl = new THREE.STLLoader();
+            var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+            loader_stl.load( '../models/stl/pr2_head_pan.stl', function ( geometry ) {
+                var mesh = new THREE.Mesh( geometry, material);
+                mesh.position.set( 0, - 0.37, - 0.6 );
+                mesh.rotation.set( - Math.PI / 2, 0, 0 );
+                mesh.scale.set( 200, 200, 200 );
+                console.log(7);
+                scene.add( mesh );
+                objects.push(mesh);
+                render();
+            } );
+        }
+
+        function initGui() {
+            gui = new dat.GUI();
+            //GUI选项组
+            var f1 = gui.addFolder('Texture');
+            f1.add(API, 'offsetX', 0.0, 1.0).name('offset.x').onChange(updateUvTransform);
+            f1.add(API, 'offsetY', 0.0, 1.0).name('offset.y').onChange(updateUvTransform);
+            f1.add(API, 'repeatX', 0.25, 2.0).name('repeat.x').onChange(updateUvTransform);
+            f1.add(API, 'repeatY', 0.25, 2.0).name('repeat.y').onChange(updateUvTransform);
+            f1.add(API, 'rotation', -2.0, 2.0).name('rotation').onChange(updateUvTransform);
+            f1.add(API, 'centerX', 0.0, 1.0).name('center.x').onChange(updateUvTransform);
+            f1.add(API, 'centerY', 0.0, 1.0).name('center.y').onChange(updateUvTransform);
+            f1.add(API, 'textures', ['logo-webgl', 'crate']).onChange(function (e) {
+                if (!mesh.material.map) {
+                    if(e == 'logo-webgl'){
+                        new THREE.TextureLoader().load( '../pictures/logo-webgl', function ( texture ) {
+                            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                            var material = new THREE.MeshBasicMaterial( { map: texture } );
+                            mesh.material = material;
+                        } );
+                    }
+                    if(e == 'crate'){
+                        new THREE.TextureLoader().load( '../pictures/crate.gif', function ( texture ) {
+                            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                            var material = new THREE.MeshBasicMaterial( { map: texture } );
+                            mesh.material = material;
+                        } );
+                    }
+                }
+                else{
+                    if (e == 'logo-webgl') {
+                        var image = new Image();
+                        image.src = '../logo-webgl.png';
+                        image.onload = function () {
+                            mesh.material.map.image = image;
+                            mesh.material.map.needsUpdate = true;
+                            render();
+                        }
+                    }
+                    if (e == 'crate') {
+                        var image = new Image();
+                        image.src = '../crate.gif';
+                        image.onload = function () {
+                            mesh.material.map.image = image;
+                            mesh.material.map.needsUpdate = true;
+                            render();
+                        }
+                    }
+                }
+            });
+            f1.add(API, 'RepeatWrapping').onChange(function (e) {
+                if (e) {
+                    mesh.material.map.wrapS = mesh.material.map.wrapT = THREE.RepeatWrapping; //设置为可循环
+                } else {
+                    mesh.material.map.wrapS = mesh.material.map.wrapT = THREE.ClampToEdgeWrapping; //设置会默认的最后一像素伸展
+                }
+                mesh.material.map.needsUpdate = true;
+                render();
+            });
+            gui.add(API, 'materials', ['Basic', 'Normal', 'Depth', 'Lambert', 'Phong']).onChange(function (e) {
+                var material;
+                if (e == "Basic")
+                    material = new THREE.MeshBasicMaterial();
+                if (e == "Normal")
+                    material = new THREE.MeshNormalMaterial();
+                if (e == "Depth")
+                    material = new THREE.MeshDepthMaterial();
+                if (e == "Lambert")
+                    material = new THREE.MeshLambertMaterial();
+                if (e == "Phong")
+                    material = new THREE.MeshPhongMaterial();
+                mesh.material = material;//这样material就能存储多个材质
+                render();
+            });
+            gui.add(API, 'scale').min(0.1).step(0.1).onChange(function (e) {
+                current.scale.set(e, e, e);
+                render();
+            });
+        }
+
+        function controls() {
+            //OrbitControls
+            var controls_orbit=new THREE.OrbitControls(camera,renderer.domElement);   //不同于以前版本，第二个参数mandatory
+            //事件监听和处理
+            controls_orbit.update();
+            controls_orbit.addEventListener('change',render);
+
+            //DragControls
+            controls_drag = new THREE.DragControls( objects,camera,renderer.domElement );
+            controls_drag.addEventListener( 'dragstart', function (event) {
+                controls_orbit.enabled = false;
+            } );
+            controls_drag.addEventListener( 'dragend', function  (event) {
+                controls_orbit.enabled = true;
+            } );
+
+            //TransformControls
+            controls_transform = new THREE.TransformControls( camera, renderer.domElement );
+            controls_transform.addEventListener( 'change', render );
+            controls_transform.addEventListener( 'dragging-changed', function ( event ) {
+                controls_orbit.enabled = ! event.value;
+            } );
+            controls_transform.enabled = false;
+            scene.add( controls_transform );
+        }
+
+        function listeners(){
+            document.addEventListener("click", function(event) {
+                event.preventDefault();
+                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+                var raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                var intersects_mesh = raycaster.intersectObjects(sceneObjs_mesh);
+                var intersects_import = raycaster.intersectObjects(sceneObjs_import);
+                if ( intersects_import.length > 0 ) {
+                    if( intersects_import[0].object.parent.children.length > 1) {
+                        if (INTERSECTED != intersects_import[0].object.parent) {
+                            INTERSECTED = intersects_import[0].object.parent;
+                            console.log("选中");
+                            current = INTERSECTED;
+                            controls_transform.attach(INTERSECTED);
+                        }
+                    }else{
+                        if (INTERSECTED != intersects_import[0].object) {
+                            INTERSECTED = intersects_import[0].object;
+                            console.log("选中");
+                            current = INTERSECTED;
+                            controls_transform.attach(INTERSECTED);
+                        }
+                    }
+                }
+                if ( intersects_mesh.length > 0){
+                    if (INTERSECTED != intersects_mesh[0].object) {
+                        INTERSECTED = intersects_mesh[0].object;
+                        current = INTERSECTED;
+                        console.log("选中");
+                        controls_transform.attach(INTERSECTED);
+                    }
+                }
+            });
+
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('keydown', function (event) {
+                switch (event.keyCode) {
+                    case 81: // Q
+                        controls_transform.setSpace(controls_transform.space === "local" ? "world" : "local");
+                        break;
+                    case 17: // Ctrl
+                        controls_transform.setTranslationSnap(100);
+                        controls_transform.setRotationSnap(THREE.Math.degToRad(15));
+                        break;
+                    case 87: // W
+                        controls_transform.setMode("translate");
+                        break;
+                    case 69: // E
+                        controls_transform.setMode("rotate");
+                        break;
+                    case 82: // R
+                        controls_transform.setMode("scale");
+                        break;
+                    case 187:
+                    case 107: // +, =, num+
+                        controls_transform.setSize(controls_transform.size + 0.1);
+                        break;
+                    case 189:
+                    case 109: // -, _, num-
+                        controls_transform.setSize(Math.max(controls_transform.size - 0.1, 0.1));
+                        break;
+                    case 88: // X
+                        controls_transform.showX = !controls_transform.showX;
+                        break;
+                    case 89: // Y
+                        controls_transform.showY = !controls_transform.showY;
+                        break;
+                    case 90: // Z
+                        controls_transform.showZ = !controls_transform.showZ;
+                        break;
+                    case 65: // A
+                        controls_transform.enabled = !controls_transform.enabled;
+                        controls_drag.enabled = !controls_drag.enabled;
+                        break;
+                    case 71: // G
+                        addObjects();
+                        break;
+                    case 68: // D
+                        //scene.remove(mesh);
+                        break;
+                }
+            });
+            window.addEventListener('keyup', function (event) {
+                if (event.keyCode === 17) {
+                    controls_transform.setTranslationSnap(null);
+                    controls_transform.setRotationSnap(null);
+                }
+            });
+        }
+
+        //////////////////////////////////////////////////
+        function addObjects(){
+            sceneObjs_mesh.splice(0,sceneObjs_mesh.length);
+            sceneObjs_import.splice(0, sceneObjs_import.length);
+            objects.forEach(function (child) {   //scene.children
+                if (child instanceof THREE.Mesh){
+                    sceneObjs_mesh.push(child);
+                    console.log("Mesh.");
+                }
+                else {
+                    for (var i = 0; i < child.children.length; i++) {
+                        var obj = child.children[i];
+                        sceneObjs_import.push(obj);
+                        console.log("外部");
+                    }
+                }
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+
+
+        function updateUvTransform() {
+            if(mesh.material.map)
+                var texture = mesh.material.map;
+            else{
+                console.log("没有贴图！！")
+                return;
+            }
+            if ( texture.matrixAutoUpdate === true ) {
+                texture.offset.set( API.offsetX, API.offsetY );
+                texture.repeat.set( API.repeatX, API.repeatY );
+                texture.center.set( API.centerX, API.centerY );
+                texture.rotation = API.rotation; // rotation is around [ 0.5, 0.5 ]
+            } else {
+                texture.matrix
+                    .identity()
+                    .translate( - API.centerX, - API.centerY )
+                    .rotate( API.rotation )					// I don't understand how rotation can preceed scale, but it seems to be required...
+                    .scale( API.repeatX, API.repeatY )
+                    .translate( API.centerX, API.centerY )
+                    .translate( API.offsetX, API.offsetY );
+            }
+            render();
+        }
+
+        var Options = function() {
+            this.color = "#ffae23"; // CSS string
+            this.music = false;
+        };
+
+        window.onload = function() {
+            var options = new Options();
+            var gui = new dat.GUI();
+
+            gui.remember(options);
+            gui.addColor(options, 'color').onChange(function (e) {
+                if(current instanceof THREE.Mesh)
+                    current.material.color.set(e);
+                else{
+                    current.traverse(function (child){
+                        child.material.color.set(e);
+                    });
+                }
+            });
+            gui.add(options, 'music').onChange(function (e) {
+                var music = document.getElementById('music');//获取ID  
+                if (e) { //判读是否播放  
+                    music.play(); //没有就播放 
+                }
+                else
+                {   //停止播放
+                    music.pause();
+                }
+            });
+        };
+
+
+        //渲染动画
+        function animate() {
+            requestAnimationFrame(animate);
+            //fbx animation
+            var delta = clock.getDelta();
+            if ( mixer ) mixer.update( delta );
+            render();
+            stats.update();
+        }
+
+        //渲染
+        function render() {
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

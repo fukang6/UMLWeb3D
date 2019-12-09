@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - STL</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <script src="../references/three.js"></script>
+    <script src="../references/stats.min.js"></script>
+    <script src="../references/dat.gui.min.js"></script>
+    <script src="../references/OrbitControls.js"></script>
+    <script src="../references/OBJLoader.js"></script>
+    <script src="../references/MTLLoader.js"></script>
+    <script src="../references/DragControls.js"></script>
+    <script src="../references/TransformControls.js"></script>
+    <script src="../references/FBXLoader.js"></script>
+    <script src="../references/inflate.min.js"></script>
+    <script src="../references/TDSLoader.js"></script>
+    <script src="../references/STLLoader.js"></script>
+
+</head>
+<body>
+<div id="test">
+    <input type="file" id="fileMutiply" name="files" multiple accept=".obj,.mtl,.fbx,.3ds, .stl ,.jpg">
+    <button type="button" id="import" onclick="import_function()">Import</button>
+    <script>
+
+        var THREE,scene,mouse,camera,renderer;
+        var stats;
+        var objects = [];
+        var mesh, current;
+        var gui;
+
+        main();
+        animate();
+        /////////////////////////////////////////////////////////////
+        function main() {
+            init();
+        }
+
+
+        ///////////////////////////////////////////////////////
+        function init() {
+            //创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0xf0f0f0 );
+            scene.add( new THREE.GridHelper( 1000, 20 ) );
+
+            //添加灯光
+            var light=new THREE.PointLight(0xffffff);
+            light.position.set(300,400,200);
+            scene.add(light);
+            //加入环境光
+            scene.add(new THREE.AmbientLight(0x333333));
+
+            //加入相机对象
+            camera=new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight,1,5000);
+            camera.position.set(0,100,500);
+            camera.lookAt(scene.position);
+
+            //创建渲染器
+            renderer=new THREE.WebGLRenderer();
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize(window.innerWidth,window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+        }
+
+
+        //渲染动画
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        //渲染
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+
+        function import_function() {
+            //load obj
+            /*var file = document.getElementById("fileMutiply").files[0];
+            var windowURL = window.URL || window.webkitURL;
+            var dataURl = windowURL.createObjectURL(file);
+
+            var obj=document.getElementById('fileMutiply');
+            obj.outerHTML=obj.outerHTML;
+
+
+            var loader_obj=new THREE.OBJLoader();
+            loader_obj.load(dataURl,function(dogObject){
+                dogObject.scale.set(0.1,0.1,0.1);
+                dogObject.position.y=50;
+                dogObject.position.x=30;
+                console.log(3);
+                scene.add(dogObject);
+                console.log("obj :" + dogObject.children.length);
+                objects.push(dogObject);
+            });*/
+
+            //load obj with mtl
+            var file1 = document.getElementById("fileMutiply").files[0];
+            var file2 = document.getElementById("fileMutiply").files[1];
+            var file3 = document.getElementById("fileMutiply").files[2];
+            var file4 = document.getElementById("fileMutiply").files[3];
+            var file5 = document.getElementById("fileMutiply").files[4];
+
+            var windowURL = window.URL || window.webkitURL;
+            var dataURl1 = windowURL.createObjectURL(file4);
+            var dataURl2 = windowURL.createObjectURL(file5);
+
+            var mtlLoader=new THREE.MTLLoader();
+            mtlLoader.load(dataURl1,function(materials) {
+                materials.preload();
+                var loader = new THREE.OBJLoader();
+                loader.setMaterials(materials);
+                loader.load(dataURl2, function (dogObject) {
+                    dogObject.scale.set(0.1, 0.1, 0.1);
+                    dogObject.position.y = 50;
+                    dogObject.position.x = -30;
+                    console.log(4);
+                    scene.add(dogObject);
+                    console.log("obj :" + dogObject.children.length);
+                    objects.push(dogObject);
+                });
+            });
+
+           //load obj with jpg
+           /*var file1 = document.getElementById("fileMutiply").files[0];
+           var file2 = document.getElementById("fileMutiply").files[4];
+
+           var windowURL = window.URL || window.webkitURL;
+           var dataURl1 = windowURL.createObjectURL(file1);
+           var dataURl2 = windowURL.createObjectURL(file2);
+
+           var loader_3ds_texture = new THREE.TextureLoader();
+           var normal = loader_3ds_texture.load(dataURl1);
+           var loader_3ds = new THREE.OBJLoader();
+           loader_3ds.setResourcePath( '../models/dog/' );
+           loader_3ds.load( dataURl2, function ( object ) {
+               object.traverse( function ( child ) {
+                   if ( child.isMesh ) {
+                       child.material.normalMap = normal;
+                   }
+               } );
+               object.scale.set(0.1, 0.1, 0.1);
+               console.log(6);
+               scene.add( object );
+               console.log("3ds :" + object.children.length);
+               objects.push(object);
+               render();
+           } );*/
+
+            //load fbx
+            /*var file = document.getElementById("fileMutiply").files[0];
+            var windowURL = window.URL || window.webkitURL;
+            var dataURl = windowURL.createObjectURL(file);
+            var loader_fbx = new THREE.FBXLoader();
+            loader_fbx.load( dataURl, function ( object ) {
+                mixer = new THREE.AnimationMixer( object );
+                var action = mixer.clipAction( object.animations[ 0 ] );
+                action.play();
+                console.log(5);
+                scene.add( object );
+                console.log("fbx :" + object.children.length);
+                objects.push(object);
+                render();
+            } );*/
+
+            //load 3ds
+            /*var file =  document.getElementById("fileMutiply").files;
+            var file1 = document.getElementById("fileMutiply").files[1];
+            var file2 = document.getElementById("fileMutiply").files[2];
+
+
+
+            var windowURL = window.URL || window.webkitURL;
+            var dataURl1 = windowURL.createObjectURL(file1);
+            var dataURl2 = windowURL.createObjectURL(file2);
+            console.log(document.getElementById("fileMutiply").files[0].name);
+
+            var loader_3ds_texture = new THREE.TextureLoader();
+            var normal = loader_3ds_texture.load(dataURl1);
+            var loader_3ds = new THREE.TDSLoader();
+            loader_3ds.setResourcePath( '../models/3ds/' );
+            loader_3ds.load( dataURl2, function ( object ) {
+                object.traverse( function ( child ) {
+                    if ( child.isMesh ) {
+                        child.material.normalMap = normal;
+                    }
+                } );
+                object.scale.set(50, 50, 50);
+                console.log(6);
+                scene.add( object );
+                console.log("3ds :" + object.children.length);
+                objects.push(object);
+                render();
+            } );*/
+
+            //load stl
+            /*var file = document.getElementById("fileMutiply").files[0];
+            var windowURL = window.URL || window.webkitURL;
+            var dataURl = windowURL.createObjectURL(file);
+
+            var loader_stl = new THREE.STLLoader();
+            var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+            loader_stl.load( dataURl, function ( geometry ) {
+                var mesh = new THREE.Mesh( geometry, material);
+                mesh.position.set( 0, - 0.37, - 0.6 );
+                mesh.rotation.set( - Math.PI / 2, 0, 0 );
+                mesh.scale.set( 200, 200, 200 );
+                console.log(7);
+                scene.add( mesh );
+                objects.push(mesh);
+                render();
+            } );*/
+        }
+    </script>
+</div>
+
+
+</body>
+</html>

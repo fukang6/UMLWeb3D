@@ -1,0 +1,3 @@
+模型导入后按G后便可点击选中
+人不能用DragControls控制
+按A使用TransformControls控制
